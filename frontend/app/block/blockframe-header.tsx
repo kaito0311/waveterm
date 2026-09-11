@@ -246,12 +246,16 @@ const BlockFrame_Header = ({
 
     const viewIconElem = getViewIconElem(viewIconUnion, iconColor);
     const badgeColor = badge?.color || "#fbbf24";
-    const headerStyle: React.CSSProperties | undefined =
-        useTermHeader && badge ? { backgroundColor: `color-mix(in srgb, ${badgeColor} 18%, transparent)` } : undefined;
+    const showBadgeGlow = useTermHeader && badge != null;
+    const headerStyle = showBadgeGlow ? ({ "--badge-glow-color": badgeColor } as React.CSSProperties) : undefined;
 
     return (
         <div
-            className={cn("block-frame-default-header", useTermHeader && "!pl-[2px]")}
+            className={cn(
+                "block-frame-default-header",
+                useTermHeader && "!pl-[2px]",
+                showBadgeGlow && "block-frame-default-header-badge-glow"
+            )}
             data-role="block-header"
             ref={dragHandleRef}
             style={headerStyle}

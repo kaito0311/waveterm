@@ -75,6 +75,7 @@
             flex-direction: column;
 
             .block-frame-default-header {
+                position: relative;
                 max-height: var(--header-height);
                 min-height: var(--header-height);
                 display: flex;
@@ -84,6 +85,21 @@
                 font: var(--header-font);
                 border-bottom: 1px solid var(--border-color);
                 border-radius: var(--block-border-radius) var(--block-border-radius) 0 0;
+
+                &.block-frame-default-header-badge-glow::before {
+                    content: "";
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 2px;
+                    border-radius: inherit;
+                    pointer-events: none;
+                    background: linear-gradient(90deg, transparent, var(--badge-glow-color), transparent);
+                    background-size: 50% 100%;
+                    background-repeat: no-repeat;
+                    animation: block-frame-header-badge-glow-sweep 5s linear infinite;
+                }
 
                 .block-frame-default-header-iconview {
                     display: flex;
@@ -444,5 +460,14 @@
                 }
             }
         }
+    }
+}
+
+@keyframes block-frame-header-badge-glow-sweep {
+    0% {
+        background-position: -50% 0;
+    }
+    100% {
+        background-position: 150% 0;
     }
 }
