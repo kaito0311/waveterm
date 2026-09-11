@@ -26,11 +26,13 @@ var badgeCmd = &cobra.Command{
 }
 
 var (
-	badgeColor    string
-	badgePriority float64
-	badgeClear    bool
-	badgeBeep     bool
-	badgePid      int
+	badgeColor       string
+	badgePriority    float64
+	badgeClear       bool
+	badgeBeep        bool
+	badgePid         int
+	badgeNotify      string
+	badgeNotifyTitle string
 )
 
 func init() {
@@ -40,6 +42,8 @@ func init() {
 	badgeCmd.Flags().BoolVar(&badgeClear, "clear", false, "clear the badge")
 	badgeCmd.Flags().BoolVar(&badgeBeep, "beep", false, "play system bell sound")
 	badgeCmd.Flags().IntVar(&badgePid, "pid", 0, "watch a pid and automatically clear the badge when it exits (default priority 5)")
+	badgeCmd.Flags().StringVar(&badgeNotify, "notify", "", "also show a native OS notification with this message")
+	badgeCmd.Flags().StringVar(&badgeNotifyTitle, "notify-title", "Wave Terminal", "title for the --notify notification")
 }
 
 func badgeRun(cmd *cobra.Command, args []string) (rtnErr error) {
@@ -100,6 +104,17 @@ func badgeRun(cmd *cobra.Command, args []string) (rtnErr error) {
 		err = wshclient.ElectronSystemBellCommand(RpcClient, &wshrpc.RpcOpts{Route: "electron"})
 		if err != nil {
 			return fmt.Errorf("playing system bell: %v", err)
+		}
+	}
+
+	if badgeNotify != "" && !badgeClear {
+		notificationOptions := wshrpc.WaveNotificationOptions{
+			Title: badgeNotifyTitle,
+			Body:  badgeNotify,
+		}
+		err = wshclient.NotifyCommand(RpcClient, notificationOptions, &wshrpc.RpcOpts{Timeout: 2000, Route: wshutil.ElectronRoute})
+		if err != nil {
+			return fmt.Errorf("sending notification: %v", err)
 		}
 	}
 

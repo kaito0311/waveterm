@@ -289,6 +289,8 @@ Flags:
 - `--clear` - remove the badge from the block or tab
 - `--beep` - play the system bell sound when setting the badge
 - `--pid int` - watch a PID and automatically clear the badge when it exits (sets default priority to 5)
+- `--notify string` - also show a native OS notification (Windows, macOS, Linux) with this message
+- `--notify-title string` - title for the `--notify` notification (default `"Wave Terminal"`)
 - `-b, --block` - target a specific block or tab (same format as `getmeta`)
 
 Examples:
@@ -308,6 +310,9 @@ wsh badge --pid 12345
 
 # Play the bell and set a badge when done
 wsh badge circle-check --beep
+
+# Set a badge and also show a native OS notification
+wsh badge triangle-exclamation --color red --notify "Build failed" --notify-title "CI"
 
 # Clear the badge on the current block
 wsh badge --clear
