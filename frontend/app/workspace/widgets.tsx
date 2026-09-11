@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Tooltip } from "@/app/element/tooltip";
+import { ContextMenuModel } from "@/app/store/contextmenu";
+import { getFocusedBlockId, getOrefMetaKeyAtom, globalStore } from "@/app/store/global";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { useWaveEnv, WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
 import { shouldIncludeWidgetForWorkspace } from "@/app/workspace/widgetfilter";
 import { modalsModel } from "@/store/modalmodel";
+import * as WOS from "@/store/wos";
 import { fireAndForget, isBlank, makeIconClass } from "@/util/util";
 import {
     autoUpdate,
@@ -27,6 +30,7 @@ export type WidgetsEnv = WaveEnvSubset<{
     };
     rpc: {
         ListAllAppsCommand: WaveEnv["rpc"]["ListAllAppsCommand"];
+        SetConfigCommand: WaveEnv["rpc"]["SetConfigCommand"];
     };
     atoms: {
         fullConfigAtom: WaveEnv["atoms"]["fullConfigAtom"];
@@ -60,6 +64,50 @@ async function handleWidgetSelect(widget: WidgetConfigType, env: WidgetsEnv) {
     env.createBlock(blockDef, widget.magnified);
 }
 
+function isFilesWidget(widget: WidgetConfigType): boolean {
+    return widget.blockdef?.meta?.view === "preview";
+}
+
+function handleFilesWidgetContextMenu(e: React.MouseEvent, env: WidgetsEnv) {
+    e.preventDefault();
+    const focusedBlockId = getFocusedBlockId();
+    let currentDir: string = null;
+    let currentConn: string = null;
+    if (focusedBlockId != null) {
+        const blockOref = WOS.makeORef("block", focusedBlockId);
+        const view = globalStore.get(getOrefMetaKeyAtom(blockOref, "view"));
+        if (view === "preview") {
+            currentDir = globalStore.get(getOrefMetaKeyAtom(blockOref, "file")) ?? "~";
+            currentConn = globalStore.get(getOrefMetaKeyAtom(blockOref, "connection"));
+        }
+    }
+    const menuItems: ContextMenuItem[] = [
+        {
+            label: "Set Default Directory to Current Folder",
+            sublabel: isBlank(currentDir) ? "no active Files tab" : currentDir,
+            enabled: !isBlank(currentDir),
+            click: () =>
+                fireAndForget(() =>
+                    env.rpc.SetConfigCommand(TabRpcClient, {
+                        "preview:defaultdir": currentDir,
+                        "preview:defaultconnection": isBlank(currentConn) ? null : currentConn,
+                    })
+                ),
+        },
+        {
+            label: "Clear Default Directory",
+            click: () =>
+                fireAndForget(() =>
+                    env.rpc.SetConfigCommand(TabRpcClient, {
+                        "preview:defaultdir": null,
+                        "preview:defaultconnection": null,
+                    })
+                ),
+        },
+    ];
+    ContextMenuModel.getInstance().showContextMenu(menuItems, e);
+}
+
 const Widget = memo(({ widget, mode, env }: WidgetPropsType) => {
     const [isTruncated, setIsTruncated] = useState(false);
     const labelRef = useRef<HTMLDivElement>(null);
@@ -84,6 +132,7 @@ const Widget = memo(({ widget, mode, env }: WidgetPropsType) => {
                 widget["display:hidden"] && "hidden"
             )}
             divOnClick={() => handleWidgetSelect(widget, env)}
+            divOnContextMenu={isFilesWidget(widget) ? (e) => handleFilesWidgetContextMenu(e, env) : undefined}
         >
             <div style={{ color: widget.color }}>
                 <i className={makeIconClass(widget.icon, true, { defaultIcon: "browser" })}></i>

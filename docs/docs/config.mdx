@@ -84,6 +84,7 @@ wsh editconfig
 | editor:inlinediff                    | bool     | set to true to show diffs inline instead of side-by-side, false for side-by-side (defaults to undefined which uses Monaco's responsive behavior)                                                                                                              |
 | preview:showhiddenfiles              | bool     | set to false to disable showing hidden files in the directory preview (defaults to true)                                                                                                                                                                      |
 | preview:defaultsort <VersionBadge version="v0.14.2" />                 | string   | sets the default sort column for directory preview. `"name"` (default) sorts alphabetically by name ascending; `"modtime"` sorts by last modified time descending (newest first)                                                                               |
+| preview:defaultdir <VersionBadge version="v0.15" />                  | string   | sets the default directory that new file explorer (preview) blocks open to when no directory is otherwise specified (defaults to `"~"`)                                                                                                                       |
 | markdown:fontsize                    | float64  | font size for the normal text when rendering markdown in preview. headers are scaled up from this size, (default 14px)                                                                                                                                        |
 | markdown:fixedfontsize               | float64  | font size for the code blocks when rendering markdown in preview (default is 12px)                                                                                                                                                                            |
 | web:openlinksinternally              | bool     | set to false to open web links in external browser                                                                                                                                                                                                            |
@@ -250,6 +251,61 @@ Each bookmark follows this structure (only `url` is required):
 - Bookmarks are sorted based on `display:order` (if provided), otherwise by id.
 - `icon` and `iconcolor` are rarely needed since the default behavior fetches the site's favicon.
 - favicons are refreshed every 24-hours
+
+## File Bookmarks Configuration <VersionBadge version="v0.15" />
+
+File Bookmarks let you define quick-navigation shortcuts for the file explorer (preview) view. They are stored in a JSON file (`filebookmarks.json`) as a key-value map where the key (`id`) is an arbitrary identifier for the bookmark. In the file explorer, long-click (or right-click) the folder icon in the block header to see the "Go to" menu built from these bookmarks, along with an "Edit Bookmarks..." item that opens `filebookmarks.json` directly.
+
+### File Bookmark Structure
+
+Each bookmark follows this structure (only `path` is required):
+
+```json
+{
+  "path": "~/Projects",
+  "connection": "wsl://Ubuntu",
+  "label": "Projects",
+  "display:order": 1
+}
+```
+
+### Fields
+
+| Field         | Type    | Description                                                                                                     |
+| ------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| path          | string  | **Required.** The directory path for the bookmark (supports `~`).                                               |
+| connection    | string  | **Optional.** The connection this path belongs to (e.g. `wsl://Ubuntu`, or an SSH connection name). Omit for a local path. |
+| label         | string  | **Optional.** A display label for the bookmark (falls back to `path`).                                          |
+| display:order | float64 | **Optional.** Defines the order in which bookmarks appear.                                                      |
+
+### Example `filebookmarks.json`
+
+```json
+{
+  "home": {
+    "path": "~",
+    "label": "Home",
+    "display:order": 1
+  },
+  "projects": {
+    "path": "~/Projects",
+    "label": "Projects",
+    "display:order": 2
+  },
+  "root": {
+    "path": "/",
+    "label": "Root",
+    "display:order": 3
+  }
+}
+```
+
+### Behavior
+
+- Bookmarks are sorted based on `display:order` (if provided), otherwise by label/path.
+- Wave Terminal ships with default bookmarks for Home, Desktop, Downloads, Documents, and Root; add a `filebookmarks.json` in your config directory to add, remove, or override them.
+- Selecting a bookmark switches the block to that bookmark's `connection` (or back to local if none is set), then navigates to `path` on that connection.
+- Clicking the star icon in the file explorer header bookmarks (or un-bookmarks) the directory currently being viewed, on whatever connection it's currently viewed from.
 
 ## Terminal Theming
 

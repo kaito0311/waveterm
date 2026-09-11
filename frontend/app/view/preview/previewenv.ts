@@ -4,8 +4,10 @@
 import { SettingsKeyAtomFnType, WaveEnv, WaveEnvSubset } from "@/app/waveenv/waveenv";
 
 export type PreviewEnv = WaveEnvSubset<{
+    createBlock: WaveEnv["createBlock"];
     electron: {
         onQuicklook: WaveEnv["electron"]["onQuicklook"];
+        getConfigDir: WaveEnv["electron"]["getConfigDir"];
     };
     rpc: {
         ConnEnsureCommand: WaveEnv["rpc"]["ConnEnsureCommand"];
@@ -16,6 +18,7 @@ export type PreviewEnv = WaveEnvSubset<{
         FileMoveCommand: WaveEnv["rpc"]["FileMoveCommand"];
         FileDeleteCommand: WaveEnv["rpc"]["FileDeleteCommand"];
         SetConfigCommand: WaveEnv["rpc"]["SetConfigCommand"];
+        SetFileBookmarkCommand: WaveEnv["rpc"]["SetFileBookmarkCommand"];
         SetMetaCommand: WaveEnv["rpc"]["SetMetaCommand"];
         FetchSuggestionsCommand: WaveEnv["rpc"]["FetchSuggestionsCommand"];
         DisposeSuggestionsCommand: WaveEnv["rpc"]["DisposeSuggestionsCommand"];
@@ -30,6 +33,8 @@ export type PreviewEnv = WaveEnvSubset<{
         object: WaveEnv["services"]["object"];
     };
     wos: WaveEnv["wos"];
-    getSettingsKeyAtom: SettingsKeyAtomFnType<"preview:showhiddenfiles" | "editor:fontsize" | "preview:defaultsort">;
+    getSettingsKeyAtom: SettingsKeyAtomFnType<
+        "preview:showhiddenfiles" | "editor:fontsize" | "preview:defaultsort" | "preview:defaultdir"
+    >;
     getConnStatusAtom: WaveEnv["getConnStatusAtom"];
 }>;

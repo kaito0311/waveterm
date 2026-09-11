@@ -262,6 +262,11 @@ const BlockFrame_Header = ({
                     </div>
                 </>
             )}
+            {useTermHeader && (
+                <div className="block-frame-default-header-iconview ml-1">
+                    {viewIconElem}
+                </div>
+            )}
             {manageConnection && (
                 <ConnectionButton
                     ref={connBtnRef}

@@ -1,0 +1,27 @@
+{
+    "home": {
+        "path": "~",
+        "label": "Home",
+        "display:order": 1
+    },
+    "desktop": {
+        "path": "~/Desktop",
+        "label": "Desktop",
+        "display:order": 2
+    },
+    "downloads": {
+        "path": "~/Downloads",
+        "label": "Downloads",
+        "display:order": 3
+    },
+    "documents": {
+        "path": "~/Documents",
+        "label": "Documents",
+        "display:order": 4
+    },
+    "root": {
+        "path": "/",
+        "label": "Root",
+        "display:order": 5
+    }
+}

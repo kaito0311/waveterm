@@ -232,6 +232,12 @@
             "modtime"
           ]
         },
+        "preview:defaultdir": {
+          "type": "string"
+        },
+        "preview:defaultconnection": {
+          "type": "string"
+        },
         "tab:preset": {
           "type": "string"
         },

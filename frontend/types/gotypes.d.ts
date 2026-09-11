@@ -635,6 +635,12 @@ declare global {
         builderid: string;
     };
 
+    // wshrpc.CommandSetFileBookmarkData
+    type CommandSetFileBookmarkData = {
+        id: string;
+        bookmark?: FileBookmark;
+    };
+
     // wshrpc.CommandSetMetaData
     type CommandSetMetaData = {
         oref: ORef;
@@ -924,6 +930,14 @@ declare global {
         suggestions: SuggestionType[];
     };
 
+    // wconfig.FileBookmark
+    type FileBookmark = {
+        path: string;
+        connection?: string;
+        label?: string;
+        "display:order"?: number;
+    };
+
     // wshrpc.FileCopyOpts
     type FileCopyOpts = {
         overwrite?: boolean;
@@ -1018,6 +1032,7 @@ declare global {
         termthemes: {[key: string]: TermThemeType};
         connections: {[key: string]: ConnKeywords};
         bookmarks: {[key: string]: WebBookmark};
+        filebookmarks: {[key: string]: FileBookmark};
         waveai: {[key: string]: AIModeConfigType};
         configerrors: ConfigError[];
         version: string;
@@ -1444,6 +1459,8 @@ declare global {
         "markdown:fixedfontsize"?: number;
         "preview:showhiddenfiles"?: boolean;
         "preview:defaultsort"?: string;
+        "preview:defaultdir"?: string;
+        "preview:defaultconnection"?: string;
         "tab:preset"?: string;
         "tab:confirmclose"?: boolean;
         "tab:background"?: string;
@@ -1589,6 +1606,7 @@ declare global {
         "debug:panictype"?: string;
         "block:view"?: string;
         "block:controller"?: string;
+        "block:subblock"?: boolean;
         "ai:backendtype"?: string;
         "ai:local"?: boolean;
         "wsh:cmd"?: string;

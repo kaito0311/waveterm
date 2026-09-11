@@ -8,6 +8,7 @@ import type { TabModel } from "@/app/store/tab-model";
 import { TabRpcClient } from "@/app/store/wshrpcutil";
 import { getOverrideConfigAtom, refocusNode } from "@/store/global";
 import * as WOS from "@/store/wos";
+import { makeFileBookmarkId } from "@/util/bookmarkutil";
 import { goHistory, goHistoryBack, goHistoryForward } from "@/util/historyutil";
 import { checkKeyPressed } from "@/util/keyutil";
 import { addOpenMenuItems } from "@/util/previewutil";
@@ -21,15 +22,6 @@ import { createRef } from "react";
 import { PreviewView } from "./preview";
 import { makeDirectoryDefaultMenuItems } from "./preview-directory-utils";
 import type { PreviewEnv } from "./previewenv";
-
-// TODO drive this using config
-const BOOKMARKS: { label: string; path: string }[] = [
-    { label: "Home", path: "~" },
-    { label: "Desktop", path: "~/Desktop" },
-    { label: "Downloads", path: "~/Downloads" },
-    { label: "Documents", path: "~/Documents" },
-    { label: "Root", path: "/" },
-];
 
 const MaxFileSize = 1024 * 1024 * 10; // 10MB
 const MaxCSVSize = 1024 * 1024 * 1; // 1MB
@@ -207,13 +199,7 @@ export class PreviewModel implements ViewModel {
                 return {
                     elemtype: "iconbutton",
                     icon: "folder-open",
-                    longClick: (e: React.MouseEvent<any>) => {
-                        const menuItems: ContextMenuItem[] = BOOKMARKS.map((bookmark) => ({
-                            label: `Go to ${bookmark.label} (${bookmark.path})`,
-                            click: () => this.goHistory(bookmark.path),
-                        }));
-                        ContextMenuModel.getInstance().showContextMenu(menuItems, e);
-                    },
+                    longClick: (e: React.MouseEvent<any>) => this.showBookmarksMenu(e),
                 };
             }
             return iconForFile(mimeType);
@@ -334,7 +320,18 @@ export class PreviewModel implements ViewModel {
             const isCeView = loadableSV.state == "hasData" && loadableSV.data.specializedView == "codeedit";
             if (mimeType == "directory") {
                 const showHiddenFiles = get(this.showHiddenFiles);
+                const currentPath = get(this.metaFilePath);
+                const currentConn = get(this.blockAtom)?.meta?.connection;
+                const fileBookmarks = get(this.env.atoms.fullConfigAtom)?.filebookmarks ?? {};
+                const isBookmarked = fileBookmarks[makeFileBookmarkId(currentConn, currentPath)] != null;
                 return [
+                    {
+                        elemtype: "iconbutton",
+                        icon: isBookmarked ? "solid@star" : "regular@star",
+                        iconColor: isBookmarked ? "#e8c547" : undefined,
+                        title: isBookmarked ? "Remove Bookmark" : "Bookmark this Folder",
+                        click: () => fireAndForget(() => this.toggleBookmark()),
+                    },
                     {
                         elemtype: "iconbutton",
                         icon: showHiddenFiles ? "eye" : "eye-slash",
@@ -380,7 +377,8 @@ export class PreviewModel implements ViewModel {
         this.metaFilePath = atom<string>((get) => {
             const file = get(this.blockAtom)?.meta?.file;
             if (isBlank(file)) {
-                return "~";
+                const defaultDir = get(this.env.getSettingsKeyAtom("preview:defaultdir"));
+                return isBlank(defaultDir) ? "~" : defaultDir;
             }
             return file;
         });
@@ -577,7 +575,7 @@ export class PreviewModel implements ViewModel {
         this.updateOpenFileModalAndError(!modalOpen);
     }
 
-    async goHistory(newPath: string) {
+    async goHistory(newPath: string, newConnection?: string | null) {
         let fileName = globalStore.get(this.metaFilePath);
         if (fileName == null) {
             fileName = "";
@@ -587,12 +585,68 @@ export class PreviewModel implements ViewModel {
         if (updateMeta == null) {
             return;
         }
+        if (newConnection !== undefined && newConnection !== blockMeta?.connection) {
+            updateMeta.connection = newConnection;
+        }
         const blockOref = WOS.makeORef("block", this.blockId);
         await this.env.services.object.UpdateObjectMeta(blockOref, updateMeta);
 
         // Clear the saved file buffers
         globalStore.set(this.fileContentSaved, null);
         globalStore.set(this.newFileContent, null);
+    }
+
+    async toggleBookmark() {
+        const currentPath = globalStore.get(this.metaFilePath);
+        if (isBlank(currentPath)) {
+            return;
+        }
+        const currentConn = globalStore.get(this.blockAtom)?.meta?.connection;
+        const bookmarkId = makeFileBookmarkId(currentConn, currentPath);
+        const fileBookmarks = globalStore.get(this.env.atoms.fullConfigAtom)?.filebookmarks ?? {};
+        if (fileBookmarks[bookmarkId] != null) {
+            await this.env.rpc.SetFileBookmarkCommand(TabRpcClient, { id: bookmarkId, bookmark: null });
+            return;
+        }
+        const label = currentPath.split("/").filter(Boolean).pop() ?? currentPath;
+        await this.env.rpc.SetFileBookmarkCommand(TabRpcClient, {
+            id: bookmarkId,
+            bookmark: { path: currentPath, connection: currentConn, label },
+        });
+    }
+
+    showBookmarksMenu(e: React.MouseEvent<any>) {
+        const fileBookmarks = globalStore.get(this.env.atoms.fullConfigAtom)?.filebookmarks ?? {};
+        const sortedBookmarks = Object.values(fileBookmarks).sort((a, b) => {
+            const orderA = a["display:order"] ?? 0;
+            const orderB = b["display:order"] ?? 0;
+            if (orderA != orderB) {
+                return orderA - orderB;
+            }
+            return (a.label ?? a.path).localeCompare(b.label ?? b.path);
+        });
+        const menuItems: ContextMenuItem[] = sortedBookmarks.map((bookmark) => {
+            const location = isBlank(bookmark.connection)
+                ? bookmark.path
+                : `${bookmark.connection}:${bookmark.path}`;
+            return {
+                label: `Go to ${bookmark.label ?? bookmark.path} (${location})`,
+                click: () => this.goHistory(bookmark.path, bookmark.connection ?? null),
+            };
+        });
+        if (menuItems.length > 0) {
+            menuItems.push({ type: "separator" });
+        }
+        menuItems.push({
+            label: "Edit Bookmarks...",
+            click: () => fireAndForget(() => this.openFileBookmarksConfig()),
+        });
+        ContextMenuModel.getInstance().showContextMenu(menuItems, e);
+    }
+
+    async openFileBookmarksConfig() {
+        const path = `${this.env.electron.getConfigDir()}/filebookmarks.json`;
+        await this.env.createBlock({ meta: { view: "preview", file: path } }, false, true);
     }
 
     async goParentDirectory({ fileInfo = null }: { fileInfo?: FileInfo | null }) {

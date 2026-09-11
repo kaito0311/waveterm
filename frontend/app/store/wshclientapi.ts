@@ -852,6 +852,12 @@ export class RpcApiType {
         return client.wshRpcCall("setconnectionsconfig", data, opts);
     }
 
+    // command "setfilebookmark" [call]
+    SetFileBookmarkCommand(client: WshClient, data: CommandSetFileBookmarkData, opts?: RpcOpts): Promise<void> {
+        if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "setfilebookmark", data, opts);
+        return client.wshRpcCall("setfilebookmark", data, opts);
+    }
+
     // command "setmeta" [call]
     SetMetaCommand(client: WshClient, data: CommandSetMetaData, opts?: RpcOpts): Promise<void> {
         if (this.mockClient) return this.mockClient.mockWshRpcCall(client, "setmeta", data, opts);

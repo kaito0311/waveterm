@@ -3,6 +3,7 @@
 
 import { WaveAIModel } from "@/app/aipanel/waveai-model";
 import { BlockNodeModel } from "@/app/block/blocktypes";
+import { ContextMenuModel } from "@/app/store/contextmenu";
 import { appHandleKeyDown } from "@/app/store/keymodel";
 import { modalsModel } from "@/app/store/modalmodel";
 import type { TabModel } from "@/app/store/tab-model";
@@ -34,9 +35,10 @@ import {
     WOS,
 } from "@/store/global";
 import * as services from "@/store/services";
+import { makeFileBookmarkId } from "@/util/bookmarkutil";
 import * as keyutil from "@/util/keyutil";
 import { isMacOS, isWindows } from "@/util/platformutil";
-import { boundNumber, fireAndForget, stringToBase64 } from "@/util/util";
+import { boundNumber, fireAndForget, isBlank, stringToBase64 } from "@/util/util";
 import * as jotai from "jotai";
 import * as React from "react";
 import { getBlockingCommand } from "./shellblocking";
@@ -112,7 +114,12 @@ export class TermViewModel implements ViewModel {
             if (termMode == "vdom") {
                 return { elemtype: "iconbutton", icon: "bolt" };
             }
-            return { elemtype: "iconbutton", icon: "terminal" };
+            return {
+                elemtype: "iconbutton",
+                icon: "terminal",
+                title: "Hold for Go to Bookmark Menu",
+                longClick: (e: React.MouseEvent<any>) => this.showBookmarksMenu(e),
+            };
         });
         this.viewName = jotai.atom((get) => {
             const blockData = get(this.blockAtom);
@@ -298,6 +305,21 @@ export class TermViewModel implements ViewModel {
                 if (webglButton) {
                     rtn.push(webglButton);
                 }
+            }
+
+            const termMode = get(this.termMode);
+            const currentCwd = blockData?.meta?.["cmd:cwd"];
+            if (termMode != "vdom" && connStatus?.status == "connected" && !isBlank(currentCwd)) {
+                const currentConn = blockData?.meta?.connection;
+                const fileBookmarks = get(atoms.fullConfigAtom)?.filebookmarks ?? {};
+                const isBookmarked = fileBookmarks[makeFileBookmarkId(currentConn, currentCwd)] != null;
+                rtn.push({
+                    elemtype: "iconbutton",
+                    icon: isBookmarked ? "solid@star" : "regular@star",
+                    iconColor: isBookmarked ? "#e8c547" : undefined,
+                    title: isBookmarked ? "Remove Bookmark" : "Bookmark this Folder",
+                    click: () => fireAndForget(() => this.toggleBookmark()),
+                });
             }
 
             if (blockData?.meta?.["controller"] != "cmd" && shellProcStatus != "done") {
@@ -509,6 +531,84 @@ export class TermViewModel implements ViewModel {
     sendDataToController(data: string) {
         const b64data = stringToBase64(data);
         RpcApi.ControllerInputCommand(TabRpcClient, { blockid: this.blockId, inputdata64: b64data });
+    }
+
+    async toggleBookmark() {
+        const blockData = globalStore.get(this.blockAtom);
+        const currentCwd = blockData?.meta?.["cmd:cwd"];
+        if (isBlank(currentCwd)) {
+            return;
+        }
+        const currentConn = blockData?.meta?.connection;
+        const bookmarkId = makeFileBookmarkId(currentConn, currentCwd);
+        const fileBookmarks = globalStore.get(atoms.fullConfigAtom)?.filebookmarks ?? {};
+        if (fileBookmarks[bookmarkId] != null) {
+            await RpcApi.SetFileBookmarkCommand(TabRpcClient, { id: bookmarkId, bookmark: null });
+            return;
+        }
+        const label = currentCwd.split("/").filter(Boolean).pop() ?? currentCwd;
+        await RpcApi.SetFileBookmarkCommand(TabRpcClient, {
+            id: bookmarkId,
+            bookmark: { path: currentCwd, connection: currentConn, label },
+        });
+    }
+
+    showBookmarksMenu(e: React.MouseEvent<any>) {
+        const fileBookmarks = globalStore.get(atoms.fullConfigAtom)?.filebookmarks ?? {};
+        const sortedBookmarks = Object.values(fileBookmarks).sort((a, b) => {
+            const orderA = a["display:order"] ?? 0;
+            const orderB = b["display:order"] ?? 0;
+            if (orderA != orderB) {
+                return orderA - orderB;
+            }
+            return (a.label ?? a.path).localeCompare(b.label ?? b.path);
+        });
+        const menuItems: ContextMenuItem[] = sortedBookmarks.map((bookmark) => {
+            const location = isBlank(bookmark.connection) ? bookmark.path : `${bookmark.connection}:${bookmark.path}`;
+            return {
+                label: `Go to ${bookmark.label ?? bookmark.path} (${location})`,
+                click: () => fireAndForget(() => this.goToBookmark(bookmark)),
+            };
+        });
+        if (menuItems.length > 0) {
+            menuItems.push({ type: "separator" });
+        }
+        menuItems.push({
+            label: "Edit Bookmarks...",
+            click: () => {
+                const path = `${getApi().getConfigDir()}/filebookmarks.json`;
+                fireAndForget(() => createBlock({ meta: { view: "preview", file: path } }, false, true));
+            },
+        });
+        ContextMenuModel.getInstance().showContextMenu(menuItems, e);
+    }
+
+    async goToBookmark(bookmark: FileBookmark) {
+        const blockData = globalStore.get(this.blockAtom);
+        const currentConn = blockData?.meta?.connection;
+        const sameConnection = (bookmark.connection ?? null) === (currentConn ?? null);
+        if (sameConnection) {
+            // stay in the current shell session, just navigate it
+            const quotedPath = bookmark.path.includes(" ") ? `"${bookmark.path}"` : bookmark.path;
+            this.sendDataToController(`cd ${quotedPath}\r`);
+            return;
+        }
+        // different connection -- the running shell can't just "cd" across connections,
+        // so reconnect this block in place, same as switching connections manually
+        await RpcApi.SetMetaCommand(TabRpcClient, {
+            oref: WOS.makeORef("block", this.blockId),
+            meta: { connection: bookmark.connection ?? null, "cmd:cwd": bookmark.path },
+        });
+        try {
+            await RpcApi.ConnEnsureCommand(
+                TabRpcClient,
+                { connname: bookmark.connection ?? null, logblockid: this.blockId },
+                { timeout: 60000 }
+            );
+        } catch (e) {
+            console.log("error connecting", this.blockId, bookmark.connection, e);
+        }
+        await this.forceRestartController();
     }
 
     setTermMode(mode: "term" | "vdom") {

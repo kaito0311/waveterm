@@ -403,7 +403,10 @@ func (bc *ShellController) setupAndStartShellProcess(logCtx context.Context, rc 
 		cmdOpts.Interactive = true
 		cmdOpts.Login = true
 		cmdOpts.Cwd = blockMeta.GetString(waveobj.MetaKey_CmdCwd, "")
-		if cmdOpts.Cwd != "" {
+		// only expand/clean the cwd for local connections -- ExpandHomeDir uses path/filepath,
+		// which is platform-dependent and would mangle a remote (always forward-slash) path
+		// with backslashes when running on Windows
+		if cmdOpts.Cwd != "" && remoteName == "" {
 			cwdPath, err := wavebase.ExpandHomeDir(cmdOpts.Cwd)
 			if err != nil {
 				return nil, err
@@ -723,7 +726,8 @@ func createCmdStrAndOpts(blockId string, blockMeta waveobj.MetaMapType, connName
 		return "", nil, fmt.Errorf("missing cmd in block meta")
 	}
 	cmdOpts.Cwd = blockMeta.GetString(waveobj.MetaKey_CmdCwd, "")
-	if cmdOpts.Cwd != "" {
+	// only expand/clean the cwd for local connections -- see comment in setupAndStartShellProcess
+	if cmdOpts.Cwd != "" && connName == "" {
 		cwdPath, err := wavebase.ExpandHomeDir(cmdOpts.Cwd)
 		if err != nil {
 			return "", nil, err

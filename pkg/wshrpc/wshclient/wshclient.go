@@ -848,6 +848,12 @@ func SetConnectionsConfigCommand(w *wshutil.WshRpc, data wshrpc.ConnConfigReques
 	return err
 }
 
+// command "setfilebookmark", wshserver.SetFileBookmarkCommand
+func SetFileBookmarkCommand(w *wshutil.WshRpc, data wshrpc.CommandSetFileBookmarkData, opts *wshrpc.RpcOpts) error {
+	_, err := sendRpcRequestCallHelper[any](w, "setfilebookmark", data, opts)
+	return err
+}
+
 // command "setmeta", wshserver.SetMetaCommand
 func SetMetaCommand(w *wshutil.WshRpc, data wshrpc.CommandSetMetaData, opts *wshrpc.RpcOpts) error {
 	_, err := sendRpcRequestCallHelper[any](w, "setmeta", data, opts)

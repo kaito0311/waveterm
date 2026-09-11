@@ -156,7 +156,12 @@ func StartWslShellProcNoWsh(ctx context.Context, termSize waveobj.TermSize, cmdS
 	client := conn.GetClient()
 	conn.Infof(ctx, "WSL-NEWSESSION (StartWslShellProcNoWsh)")
 
-	ecmd := exec.Command("wsl.exe", "~", "-d", client.Name())
+	wslArgs := []string{}
+	if cmdOpts.Cwd != "" {
+		wslArgs = append(wslArgs, "--cd", cmdOpts.Cwd)
+	}
+	wslArgs = append(wslArgs, "-d", client.Name())
+	ecmd := exec.Command("wsl.exe", wslArgs...)
 
 	if termSize.Rows == 0 || termSize.Cols == 0 {
 		termSize.Rows = shellutil.DefaultTermRows
@@ -274,7 +279,12 @@ func StartWslShellProc(ctx context.Context, termSize waveobj.TermSize, cmdStr st
 		cmdCombined = fmt.Sprintf(`%s=%s %s`, wavebase.WaveJwtTokenVarName, jwtToken, cmdCombined)
 	}
 	log.Printf("full combined command: %s", cmdCombined)
-	ecmd := exec.Command("wsl.exe", "~", "-d", client.Name(), "--", "sh", "-c", cmdCombined)
+	wslArgs := []string{}
+	if cmdOpts.Cwd != "" {
+		wslArgs = append(wslArgs, "--cd", cmdOpts.Cwd)
+	}
+	wslArgs = append(wslArgs, "-d", client.Name(), "--", "sh", "-c", cmdCombined)
+	ecmd := exec.Command("wsl.exe", wslArgs...)
 	if termSize.Rows == 0 || termSize.Cols == 0 {
 		termSize.Rows = shellutil.DefaultTermRows
 		termSize.Cols = shellutil.DefaultTermCols
