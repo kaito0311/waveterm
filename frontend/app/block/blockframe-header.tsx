@@ -245,12 +245,16 @@ const BlockFrame_Header = ({
     }, [magnified]);
 
     const viewIconElem = getViewIconElem(viewIconUnion, iconColor);
+    const badgeColor = badge?.color || "#fbbf24";
+    const headerStyle: React.CSSProperties | undefined =
+        useTermHeader && badge ? { backgroundColor: `color-mix(in srgb, ${badgeColor} 18%, transparent)` } : undefined;
 
     return (
         <div
             className={cn("block-frame-default-header", useTermHeader && "!pl-[2px]")}
             data-role="block-header"
             ref={dragHandleRef}
+            style={headerStyle}
             onContextMenu={(e) => handleHeaderContextMenu(e, nodeModel.blockId, viewModel, nodeModel, waveEnv)}
         >
             {!useTermHeader && (
@@ -286,7 +290,7 @@ const BlockFrame_Header = ({
                 />
             )}
             {useTermHeader && badge && (
-                <div className="pointer-events-none flex items-center px-1" style={{ color: badge.color || "#fbbf24" }}>
+                <div className="pointer-events-none flex items-center px-1" style={{ color: badgeColor }}>
                     <i className={makeIconClass(badge.icon, true, { defaultIcon: "circle-small" })} />
                 </div>
             )}
